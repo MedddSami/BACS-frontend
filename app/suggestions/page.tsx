@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import { useMeetings } from "@/lib/hooks/use-meetings"
 import { useToast } from "@/hooks/use-toast"
@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Trash2, Lightbulb, Eye, LinkIcon, CheckCircle, XCircle } from "lucide-react"
+import { useAppDispatch, useAppSelector } from "@/lib/store/hooks"
+import { fetchSuggestionsByUser } from "@/lib/store/suggestion/suggestionSlice"
 
 export default function SuggestionsPage() {
   const {
@@ -35,6 +37,15 @@ export default function SuggestionsPage() {
   const [selectedSuggestion, setSelectedSuggestion] = useState<any>(null)
   const [implementationNotes, setImplementationNotes] = useState("")
   const [selectedActionIds, setSelectedActionIds] = useState<number[]>([])
+
+  const dispatch = useAppDispatch()
+
+  const suggestions = useAppSelector((state) => state.suggestions.suggestions)
+  const user = useAppSelector((state) => state.auth.user)
+  const userId = user?.id
+  const loading = useAppSelector((state) => state.suggestions.loading)
+  const actionLoading = useAppSelector((state) => state.suggestions.actionLoading)
+
   const [formData, setFormData] = useState({
     description: "",
     expectedBenefit: "",
@@ -48,7 +59,13 @@ export default function SuggestionsPage() {
     })),
   )
 
-  const filteredSuggestions = allSuggestions.filter((suggestion) => {
+  useEffect(() => {
+  if (userId) {
+    dispatch(fetchSuggestionsByUser({ userId, page: 0, size: 10 }))
+  }
+}, [userId, dispatch])
+
+  const filteredSuggestions = suggestions.filter((suggestion) => {
     const matchesSearch = suggestion.description.toLowerCase().includes(searchQuery.toLowerCase())
     return matchesSearch
   })

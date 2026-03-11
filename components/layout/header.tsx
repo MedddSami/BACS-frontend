@@ -17,9 +17,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const dispatch = useAppDispatch()
   const router = useRouter()
 
-  const handleLogout = () => {
-    dispatch(logoutThunk())
-    router.push("/showcase")
+  const handleLogout = async () => {
+    await dispatch(logoutThunk())
+    router.replace("/showcase")
   }
 
   return (

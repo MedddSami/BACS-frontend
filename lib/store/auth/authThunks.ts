@@ -13,7 +13,12 @@ export const login = createAsyncThunk<
   { rejectValue: string }
 >("auth/login", async (payload, { rejectWithValue }) => {
   try {
-    return await authApi.login(payload)
+    const response = await authApi.login(payload)
+    if (response.accessToken) {
+      localStorage.setItem("access_token", response.accessToken)
+      localStorage.setItem("refresh_token", response.refreshToken)
+    }
+    return response
   } catch (e: any) {
     return rejectWithValue(e.message ?? "Login failed")
   }
@@ -28,11 +33,16 @@ export const verifyTwoFactor = createAsyncThunk<
   { rejectValue: string }
 >("auth/verify2fa", async (payload, { rejectWithValue }) => {
   try {
-    return await authApi.verify2FA({
+    const response = await authApi.verify2FA({
       email: payload.email,
       password: payload.password,
       twoFactorCode: payload.code,
     })
+    if (response.accessToken) {
+      localStorage.setItem("access_token", response.accessToken)
+      localStorage.setItem("refresh_token", response.refreshToken)
+    }
+    return response
   } catch (e: any) {
     return rejectWithValue(e.message ?? "2FA verification failed")
   }
@@ -56,7 +66,8 @@ export const rehydrateAuth = createAsyncThunk<
   try {
     return await userApi.getMe()
   } catch {
-    localStorage.clear()
+    localStorage.removeItem("access_token")
+    localStorage.removeItem("refresh_token")
     return rejectWithValue("Session expired")
   }
 })
@@ -73,8 +84,8 @@ export const logoutThunk = createAsyncThunk(
       // ignore logout API errors
     } finally {
       // 🔥 critical cleanup
-      localStorage.removeItem("accessToken")
-      localStorage.removeItem("refreshToken")
+      localStorage.removeItem("access_token")
+      localStorage.removeItem("refresh_token")
       localStorage.removeItem("persist:auth")
       
     }

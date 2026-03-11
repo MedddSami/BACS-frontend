@@ -1,0 +1,269 @@
+@startuml
+' BACS+ Class Diagram for meeting automation system
+
+' ----- Enums -----
+enum MeetingType {
+  BACKLOG_REFINEMENT
+  BIDDER_CONFERENCE
+  CHANGE_CONTROL_BOARD
+  DAILY_STANDUP
+  ITERATION_PLANNING
+  ITERATION_REVIEW
+  KICKOFF
+  LESSONS_LEARNED
+  PLANNING
+  PROJECT_CLOSEOUT
+  PROJECT_REVIEW
+  RELEASE_PLANNING
+  RETROSPECTIVE
+  RISK_REVIEW
+  STATUS_MEETING
+  STEERING_COMMITTEE
+}
+
+enum ActionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+  CANCELLED
+}
+
+' ----- Core domain classes -----
+class Meeting {
+  +int meetingId
+  +String title
+  +MeetingType type
+  +DateTime scheduledAt
+  +String organiserId
+  +String agendaBACS   ' structured B, A, C, S placeholders or pointers
+  +String summary
+  +String transcriptId
+  +String notes
+  +String locationOrUrl
+  +Boolean recorded
+  +create()
+  +start()
+  +end()
+  +generateSummary()
+  +extractActions()
+}
+
+class MeetingParticipant {
+  +int id
+  +int meetingId
+  +String userId
+  +String role          ' e.g. Presenter, NoteTaker, Attendee
+  +Boolean required
+  +Boolean present
+  +String responsibility
+  +assign()
+}
+
+class ActionItem {
+  +int actionId
+  +int meetingId
+  +String description
+  +String createdById
+  +String assignedToId
+  +Date dueDate
+  +ActionStatus status
+  +int priority
+  +String sourceSegment  ' "BusinessGoal" / "Concern" / "Suggestion" / "Transcript"
+  +updateStatus()
+  +complete()
+}
+
+class Concern {
+  +int concernId
+  +int meetingId
+  +String description
+  +String raisedById
+  +DateTime raisedAt
+  +String severity
+}
+
+class Suggestion {
+  +int suggestionId
+  +int meetingId
+  +String description
+  +String raisedById
+  +DateTime raisedAt
+  +String outcome  ' e.g. Accepted / Deferred / Rejected
+}
+
+class Transcript {
+  +String transcriptId
+  +int meetingId
+  +String rawText
+  +String language
+  +DateTime createdAt
+  +String source  ' e.g. whisper, google_speech
+  +String toTextFile()
+  +summarize()
+}
+
+class Attachment {
+  +int attachmentId
+  +int meetingId
+  +String filename
+  +String mimeType
+  +long size
+  +String storageUrl
+}
+
+class User {
+  +String userId
+  +String name
+  +String email
+  +String jobTitle
+  +String department
+  +String timezone
+  +String avatarUrl
+  +getMyActions()
+}
+
+' ----- Integration / Infrastructure -----
+
+class Organization {
+  +String orgId
+  +String name
+  +String defaultCurrency
+  +String timezone
+  +List<User> users
+}
+
+' ----- Associations / Multiplicities -----
+Meeting "1" -- "0..*" MeetingParticipant : has >
+User "1" -- "0..*" MeetingParticipant : participates >
+Meeting "1" -- "0..*" ActionItem : creates >
+Meeting "1" -- "0..*" Concern : raises >
+Meeting "1" -- "0..*" Suggestion : records >
+Meeting "1" -- "0..1" Transcript : has >
+Meeting "1" -- "0..*" Attachment : includes >
+ActionItem "*" -- "1" User : assignedTo >
+ActionItem "*" -- "1" User : createdBy >
+User "1" -- "0..*" ActionItem : owner >
+Organization "1" -- "0..*" User : employs >
+Organization "1" -- "0..*" Meeting : owns >
+
+' Integration links
+Meeting "0..*" -- "0..1" CalendarIntegration : scheduledVia >
+Meeting "0..*" -- "0..1" RecordingAI : recordedVia >
+Transcript "0..*" -- "0..1" NLPProcessor : analyzedBy >
+ActionItem "0..*" -- "0..1" ERPIntegration : pushedTo >
+
+' Dashboard associations
+User "1" -- "0..1" Dashboard : has >
+Dashboard "1" o-- "*" ActionItem : displays >
+
+' Notes for clarity
+note top of Meeting
+  BACS structure:
+  - Business Goals
+  - Actions
+  - Concerns
+  - Suggestions
+end note
+
+note right of ActionItem
+  Action lifecycle: PENDING -> IN_PROGRESS -> COMPLETED -> (CANCELLED/BLOCKED)
+end note
+
+@enduml
+
+
+
+Backend Integration Estimate
+  Integrating the existing backend endpoints into the UI will take approximately 16 to 20 hours of focused effort. Since the Redux thunks and slices are already  scaffolded, the work primarily involves refactoring hooks to use useSelector and useDispatch, and replacing mock logic with API-driven state.
+
+  1-Week Integration Roadmap
+
+
+
+  ┌─────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────┬──────────┐
+  │ Phase                   │ Tasks                                                                                         │ Timeline │
+  ├─────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┼──────────┤
+  │ Phase 1: Foundation     │ Restore user sessions on refresh; fix auth rehydration in ReduxProvider.                      │ Day 1    │
+  │ Phase 2: Core Features  │ Refactor useMeetings to fetch from Redux; update Meeting List and "Upcoming Meetings" tables. │ Day 2    │
+  │ Phase 3: Accountability │ Integrate real Action Item data; link Dashboard charts to Redux state.                        │ Day 3    │
+  │ Phase 4: Governance     │ Connect Concerns, Business Goals, and Suggestions pages to their respective Redux slices.     │ Day 4    │
+  │ Phase 5: Intelligence   │ Link Transcript upload/extraction to the backend; verify AI-generated items map correctly.    │ Day 5    │
+  │ Phase 6: Reliability    │ Add global loading skeletons and error toast notifications for all API interactions.          │ Day 6    │
+  │ Phase 7: Final Polish   │ Full regression testing and UI refinement with real data.                                     │ Day 7    │
+  └─────────────────────────┴───────────────────────────────────────────────────────────────────────────────────────────────┴──────────┘
+
+
+
+  Proposed TODO List (Immediate Actions)
+   1. Refactor lib/hooks/use-meetings.ts: Replace local useState with Redux selectors and dispatch fetchMeetings on mount.
+   2. Enable Auth Hydration: Update lib/store/provider.tsx to call rehydrateAuth() so users don't lose access on page reload.
+   3. Clean Dashboard: Point DashboardPage entirely to dashboardSlice and meetingsSlice, removing all remaining mock constants.
+
+
+
+
+
+
+
+
+
+
+TODO LIST 2 *****************************
+
+🚀 1-Week Integration Roadmap & TODO List
+
+
+  Phase 1: Foundation (Day 1)
+  Priority: Establish the session so API calls don't fail with 401s.
+   - [ ] Fix Auth Rehydration: Ensure rehydrateAuth in ReduxProvider correctly reads tokens from localStorage on page refresh.
+   - [ ] User Profile: Integrate userApi.ts (Get Current User) to replace "Welcome back, User" with the actual name in the Sidebar and Header.
+   - [ ] Organization Context: Most endpoints require an organizationId. We need to fetch this from the user's profile and store it in a global appContext or   
+     Redux state.
+
+
+  Phase 2: The Core Meeting Engine (Day 2)
+  Priority: Meetings are the "Parent" entity for everything else.
+   - [ ] Meeting List: Replace mockMeetings in use-meetings.ts with fetchMeetings thunk calling GET /api/meetings.
+   - [ ] Meeting Creation: Wire up the CreateMeetingModal to createMeetingThunk (POST /api/meetings).
+   - [ ] Meeting Details: Connect the MeetingDetailsModal to fetchMeetingDetail (GET /api/meetings/{id}).
+
+
+  Phase 3: Accountability & Dashboard (Day 3)
+  Priority: Show the user their "To-Do" list immediately.
+   - [ ] Dashboard Stats: Point DashboardPage to fetchMyDashboard (GET /api/dashboard).
+   - [ ] Action Items: Replace mock actions in MyActionsTable with fetchActionItems (GET /api/action-items).
+   - [ ] Status Updates: Integrate updateActionStatus (PATCH /api/action-items/{id}/status) so users can check off tasks.
+
+
+  Phase 4: Governance & Intelligence (Day 4-5)
+  Priority: Concerns, Goals, and the AI Transcript feature.
+   - [ ] Concerns/Goals/Suggestions: Parallel integration of these three slices into their respective pages (app/concerns, app/business-goals, etc.).
+   - [ ] Transcript Upload: Connect TranscriptUploadModal to uploadTranscript (POST /api/transcripts/upload).
+   - [ ] AI Extraction: Map the returned "Extracted Data" from the transcript API to the state so they appear as "Suggested Items" for the user to approve.     
+
+
+  Phase 5: Refinement & Polish (Day 6-7)
+   - [ ] Loading States: Add Skeleton components to tables while loading is true.
+   - [ ] Error Toasts: Ensure Axios interceptors trigger the use-toast hook on 400/500 errors.
+   - [ ] Validation: Final pass on Zod schemas for all forms.
+
+  ---
+
+  💡 Top 3 Recommended Improvements
+
+
+  1. Transition to RTK Query
+  The project currently uses createAsyncThunk for everything. While it works, RTK Query would significantly reduce your boilerplate for "Concerns," "Goals," and  "Suggestions." It handles caching, loading states, and "optimistic updates" (making the UI feel instant) automatically.
+   * Benefit: Saves you roughly 10-15% of code volume.
+
+
+  2. Unified Modal & Form Strategy
+  You have many modals (add-action-modal.tsx, add-concern-modal.tsx). They often share the same logic (Date pickers, User selectors).
+   * Improvement: Create a GenericMeetingEntityModal or a higher-order component to handle the submission logic and error state for all "Add Item" actions. This     prevents bugs where one modal works but another doesn't.
+
+
+  3. AI Extraction Review UI
+  Right now, the transcript analysis seems to "auto-analyze."
+   * Improvement: Instead of automatically saving everything the AI finds, create a "Review & Approve" step. When a transcript is processed, show the user a    
+     list of "Found Actions" with checkboxes. This prevents the database from being cluttered with AI hallucinations or irrelevant notes.

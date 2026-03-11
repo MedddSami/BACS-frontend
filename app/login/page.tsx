@@ -29,7 +29,6 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user && !requiresTwoFactor && isAuthenticated) {
-      console.log("user", user)
       router.replace("/dashboard")
     }
   }, [user, requiresTwoFactor, isAuthenticated])

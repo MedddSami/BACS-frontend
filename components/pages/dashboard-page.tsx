@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useMeetings, useActions } from "@/lib/hooks/use-meetings"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,16 +8,25 @@ import UpcomingMeetingsTable from "@/components/dashboard/upcoming-meetings-tabl
 import MyActionsTable from "@/components/dashboard/my-actions-table"
 import ActionCompletionChart from "@/components/dashboard/action-completion-chart"
 import CreateMeetingModal from "@/components/modals/create-meeting-modal"
-import { useAppSelector } from "@/lib/store/hooks"
+import { useAppDispatch, useAppSelector } from "@/lib/store/hooks"
 import { selectAuthUser } from "@/lib/store/auth/authSelectors"
+import { fetchMyDashboard } from "@/lib/store/dashboard/dashboardSlice"
 
 export default function DashboardPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const dispatch = useAppDispatch()
+  const { data, loading } = useAppSelector(state => state.dashboard)
   const user = useAppSelector(selectAuthUser)
   const { meetings } = useMeetings()
   const { actions } = useActions()
 
-  const stats = {
+  useEffect(() => {
+    dispatch(fetchMyDashboard())
+  }, [dispatch])
+
+  const stats = data?.stats
+
+  const _stats = {
     totalActions: actions.length,
     openActions: actions.filter((a) => a.status === "NEW").length,
     inProgressActions: actions.filter((a) => a.status === "IN_PROGRESS").length,
@@ -33,7 +42,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold text-foreground text-balance">Welcome back, {user?.firstName || "User"}</h2>
-          <p className="text-muted-foreground mt-1">Here's what's happening with your meetings today</p>
+          <p className="text-muted-foreground mt-1">Here's what's happening with your meetings lately</p>
         </div>
         <Button
           onClick={() => setShowCreateModal(true)}
@@ -50,7 +59,7 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalActions}</div>
+            <div className="text-2xl font-bold">{stats?.totalActions}</div>
           </CardContent>
         </Card>
         <Card>
@@ -58,7 +67,7 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">In Progress</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.inProgressActions}</div>
+            <div className="text-2xl font-bold text-blue-600">{stats?.inProgressActions}</div>
           </CardContent>
         </Card>
         <Card>
@@ -66,7 +75,7 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.completedActions}</div>
+            <div className="text-2xl font-bold text-green-600">{stats?.completedActions}</div>
           </CardContent>
         </Card>
         <Card>
@@ -74,7 +83,7 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Overdue</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.overdueActions}</div>
+            <div className="text-2xl font-bold text-red-600">{stats?.overdueActions}</div>
           </CardContent>
         </Card>
       </div>

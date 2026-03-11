@@ -8,15 +8,14 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useMeetings } from "@/lib/hooks/use-meetings"
 import { useToast } from "@/hooks/use-toast"
-import type { Meeting } from "@/lib/hooks/use-meetings"
-import { useAppSelector } from "@/lib/store/hooks"
+import { useAppDispatch, useAppSelector } from "@/lib/store/hooks"
+import { createMeetingThunk } from "@/lib/store/meeting/meetingSlice"
 
 interface CreateMeetingModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onMeetingCreated?: (meeting: Meeting) => void
+  onMeetingCreated?: (meeting: any) => void
 }
 
 const PLAN_TYPES = [
@@ -47,8 +46,8 @@ const MEETING_TYPES = [
 ]
 
 export default function CreateMeetingModal({ open, onOpenChange, onMeetingCreated }: CreateMeetingModalProps) {
-  const { user, requiresTwoFactor, loading } = useAppSelector(s => s.auth)
-  const { addMeeting } = useMeetings()
+  const { user } = useAppSelector(s => s.auth)
+  const dispatch = useAppDispatch()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -81,11 +80,6 @@ export default function CreateMeetingModal({ open, onOpenChange, onMeetingCreate
   const handleCreate = async () => {
     if (!formData.title.trim() || !formData.scheduledAt) {
       setError("Please fill in required fields: Title and Date")
-      toast({
-        title: "Validation Error",
-        description: "Please fill in required fields: Title and Date",
-        variant: "destructive",
-      })
       return
     }
 
@@ -93,27 +87,14 @@ export default function CreateMeetingModal({ open, onOpenChange, onMeetingCreate
     setError(null)
 
     try {
-      const newMeeting: Meeting = {
+      const payload = {
         ...formData,
-        id: Math.random(),
-        type: formData.meetingType,
-        mode: formData.meetingMode,
-        classification: formData.meetingClassification,
-        date: new Date(formData.scheduledAt).toISOString().split("T")[0],
-        organiser: user?.firstName,
-        status: "SCHEDULED",
-        participantsCount: 0,
-        participants: [],
-        businessGoals: [],
-        actions: [],
-        concerns: [],
-        suggestions: [],
-        frequency: formData.meetingFrequency,
-        nature: "Planning",
+        organizationId: user?.organizationId || 1,
+        scheduledAt: new Date(formData.scheduledAt).toISOString(),
       }
 
-      const createdMeeting = addMeeting(newMeeting)
-      onMeetingCreated?.(createdMeeting)
+      const result = await dispatch(createMeetingThunk(payload)).unwrap()
+      onMeetingCreated?.(result)
 
       toast({
         title: "Success",
@@ -137,14 +118,9 @@ export default function CreateMeetingModal({ open, onOpenChange, onMeetingCreate
         affectedPlanTypes: [],
         notes: "",
       })
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to create meeting"
+    } catch (err: any) {
+      const errorMessage = err || "Failed to create meeting"
       setError(errorMessage)
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      })
     } finally {
       setIsLoading(false)
     }

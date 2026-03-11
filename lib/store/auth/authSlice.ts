@@ -12,18 +12,20 @@ interface AuthState {
     twoFactorToken?: string
 
     loading: boolean
+    rehydrated: boolean // NEW: To track if rehydration attempt finished
     error?: string
 }
 
 const initialState: AuthState = {
     user: null,
-    accessToken: null,
-    refreshToken: null,
+    accessToken: typeof window !== "undefined" ? localStorage.getItem("access_token") : null,
+    refreshToken: typeof window !== "undefined" ? localStorage.getItem("refresh_token") : null,
 
     isAuthenticated: false,
     requiresTwoFactor: false,
 
-    loading: false,
+    loading: typeof window !== "undefined" && !!localStorage.getItem("access_token"),
+    rehydrated: false,
 }
 
 const authSlice = createSlice({
@@ -31,8 +33,21 @@ const authSlice = createSlice({
     initialState,
     reducers: {
         logout(state) {
-            return initialState
+            state.user = null
+            state.accessToken = null
+            state.refreshToken = null
+            state.isAuthenticated = false
+            state.requiresTwoFactor = false
+            state.loading = false
+            state.rehydrated = true
         },
+        setLoading(state, action: PayloadAction<boolean>) {
+            state.loading = action.payload
+        },
+        finishRehydration(state) {
+            state.rehydrated = true
+            state.loading = false
+        }
     },
     extraReducers: builder => {
         // 🔐 LOGIN
@@ -56,6 +71,7 @@ const authSlice = createSlice({
                 state.accessToken = action.payload.accessToken
                 state.refreshToken = action.payload.refreshToken
                 state.isAuthenticated = true
+                state.rehydrated = true
             })
             .addCase(login.rejected, (state, action) => {
                 state.loading = false
@@ -76,6 +92,7 @@ const authSlice = createSlice({
                 state.accessToken = action.payload.accessToken
                 state.refreshToken = action.payload.refreshToken
                 state.isAuthenticated = true
+                state.rehydrated = true
             })
             .addCase(verifyTwoFactor.rejected, (state, action) => {
                 state.loading = false
@@ -92,15 +109,46 @@ const authSlice = createSlice({
                 state.user = action.payload
                 state.accessToken = localStorage.getItem("access_token")
                 state.refreshToken = localStorage.getItem("refresh_token")
+                state.isAuthenticated = true
+                state.rehydrated = true
             })
             .addCase(rehydrateAuth.rejected, state => {
                 state.loading = false
                 state.user = null
                 state.accessToken = null
                 state.refreshToken = null
+                state.isAuthenticated = false
+                state.rehydrated = true
+            })
+
+        // 🚪 LOGOUT
+        builder
+            .addCase(logoutThunk.pending, state => {
+                state.loading = true
+            })
+            .addCase(logoutThunk.fulfilled, state => {
+                state.user = null
+                state.accessToken = null
+                state.refreshToken = null
+                state.isAuthenticated = false
+                state.requiresTwoFactor = false
+                state.loading = false
+                state.rehydrated = true
+            })
+            .addCase(logoutThunk.rejected, state => {
+                // still clear state even if API fails
+                state.user = null
+                state.accessToken = null
+                state.refreshToken = null
+                state.isAuthenticated = false
+                state.requiresTwoFactor = false
+                state.loading = false
+                state.rehydrated = true
             })
     },
 })
+
+export const { logout, setLoading, finishRehydration } = authSlice.actions
 
 
 export default authSlice.reducer

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import { useMeetings } from "@/lib/hooks/use-meetings"
 import { useToast } from "@/hooks/use-toast"
@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { useAppDispatch, useAppSelector } from "@/lib/store/hooks"
+import { fetchMyActions } from "@/lib/store/actionItem/actionItemSlice"
 
 const statusColors: Record<string, string> = {
   NEW: "bg-gray-100 text-gray-800",
@@ -37,6 +39,14 @@ export default function ActionsPage() {
     markActionAsComplete,
   } = useMeetings()
   const { toast } = useToast()
+
+  const dispatch = useAppDispatch()
+
+  const actions = useAppSelector((state) => state.actions.actions)
+  const loading = useAppSelector((state) => state.actions.loading)
+  //const actionLoading = useAppSelector((state) => state.actions.actionLoading)
+
+  
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
@@ -54,6 +64,10 @@ export default function ActionsPage() {
     assignedToName: "Current User",
   })
 
+  useEffect(() => {
+    dispatch(fetchMyActions({ page: 0, size: 10 }))
+  }, [dispatch])
+
   const allActions = meetings.flatMap((meeting) =>
     (meeting.actions || []).map((action) => ({
       ...action,
@@ -62,7 +76,7 @@ export default function ActionsPage() {
     })),
   )
 
-  const filteredActions = allActions.filter((action) => {
+  const filteredActions = actions.filter((action) => {
     const matchesStatus = statusFilter === "all" || action.status === statusFilter
     const matchesPriority = priorityFilter === "all" || action.priority === priorityFilter
     const matchesSearch = action.description.toLowerCase().includes(searchQuery.toLowerCase())

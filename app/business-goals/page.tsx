@@ -1,9 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import { useMeetings } from "@/lib/hooks/use-meetings"
 import { useToast } from "@/hooks/use-toast"
+import { useAppDispatch, useAppSelector } from "@/lib/store/hooks"
+import { fetchActiveByOrganization } from "@/lib/store/businessGoal/businessGoalSlice"
 
 const statusColors: Record<string, string> = {
   NEW: "bg-gray-100 text-gray-800",
@@ -22,6 +24,15 @@ export default function BusinessGoalsPage() {
     addActionToMeeting,
   } = useMeetings()
   const { toast } = useToast()
+
+  const dispatch = useAppDispatch()
+
+  const businessGoals = useAppSelector((state) => state.businessGoals.goals)
+  const user = useAppSelector((state) => state.auth.user)
+  const organizationId = user?.organizationId
+  const loading = useAppSelector((state) => state.businessGoals.loading)
+  const actionLoading = useAppSelector((state) => state.businessGoals.actionLoading)
+
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [isAdding, setIsAdding] = useState(false)
@@ -47,7 +58,13 @@ export default function BusinessGoalsPage() {
     })),
   )
 
-  const filteredGoals = allGoals.filter((goal) => {
+  useEffect(() => {
+    if (organizationId) {
+      dispatch(fetchActiveByOrganization(organizationId))
+    }
+  }, [organizationId, dispatch])
+
+  const filteredGoals = businessGoals.filter((goal) => {
     const matchesSearch = goal.description.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesStatus = statusFilter === "all" || goal.status === statusFilter
     return matchesSearch && matchesStatus

@@ -1,9 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import { useMeetings } from "@/lib/hooks/use-meetings"
 import { useToast } from "@/hooks/use-toast"
+import { useAppDispatch, useAppSelector } from "@/lib/store/hooks"
+import { fetchUnresolvedConcerns } from "@/lib/store/concern/concernSlice"
 
 const severityColors: Record<string, string> = {
   LOW: "bg-blue-100 text-blue-800",
@@ -30,6 +32,13 @@ export default function ConcernsPage() {
     concerns,
   } = useMeetings()
   const { toast } = useToast()
+
+  const dispatch = useAppDispatch()
+
+  const _concerns = useAppSelector((state) => state.concerns.concerns)
+  const loading = useAppSelector((state) => state.concerns.loading)
+  const actionLoading = useAppSelector((state) => state.concerns.actionLoading)
+
   const [searchQuery, setSearchQuery] = useState("")
   const [severityFilter, setSeverityFilter] = useState("all")
   const [isAdding, setIsAdding] = useState(false)
@@ -49,9 +58,13 @@ export default function ConcernsPage() {
   const allConcerns = Array.isArray(concerns) ? concerns : []
   console.log("[v0] All concerns:", allConcerns)
 
-  const filteredConcerns = allConcerns.filter((concern) => {
+  useEffect(() => {
+      dispatch(fetchUnresolvedConcerns())
+    }, [dispatch])
+
+  const filteredConcerns =_concerns.filter((concern) => {
     const matchesSearch = concern.description.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesSeverity = severityFilter === "all" || concern.severityRating === severityFilter
+    const matchesSeverity = severityFilter === "all" || concern.severity === severityFilter
     return matchesSearch && matchesSeverity
   })
 
@@ -279,9 +292,9 @@ export default function ConcernsPage() {
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-sm font-semibold text-gray-600">{concern.code}</span>
                         <span
-                          className={`px-2 py-1 text-xs font-semibold rounded-full ${severityColors[concern.severityRating]}`}
+                          className={`px-2 py-1 text-xs font-semibold rounded-full ${severityColors[concern.severity]}`}
                         >
-                          {concern.severityRating}
+                          {concern.severity}
                         </span>
                         <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">
                           {concern.status || "OPEN"}

@@ -1,13 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import CreateMeetingModal from "@/components/modals/create-meeting-modal"
 import MeetingDetailsModal from "@/components/modals/meeting-details-modal"
-import { useMeetings } from "@/lib/hooks/use-meetings"
+import { useAppDispatch, useAppSelector } from "@/lib/store/hooks"
+import { selectMeetings, selectMeetingsError, selectMeetingsLoading } from "@/lib/store/meeting/meetingSelectors"
+import { fetchMeetingDetail, fetchMeetings } from "@/lib/store/meeting/meetingSlice"
+import { selectAuthUser } from "@/lib/store/auth/authSelectors"
 
 const statusColors: Record<string, string> = {
   SCHEDULED: "bg-yellow-100 text-yellow-800",
@@ -16,9 +19,30 @@ const statusColors: Record<string, string> = {
 }
 
 export default function MeetingsPage() {
-  const { meetings } = useMeetings()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedMeeting, setSelectedMeeting] = useState<any>(null)
+
+  const dispatch = useAppDispatch()
+
+  const _meetings = useAppSelector(selectMeetings)
+  const loading = useAppSelector(selectMeetingsLoading)
+  const error = useAppSelector(selectMeetingsError)
+
+  const user = useAppSelector(selectAuthUser)
+  const organizationId = user?.organizationId
+
+
+  // ---------------- FETCH ON MOUNT ----------------
+  useEffect(() => {
+    if (organizationId) {
+      dispatch(fetchMeetings({ organizationId, page: 0, size: 10 }))
+    }
+  }, [dispatch, organizationId])
+
+  const handleViewDetails = (meeting: any) => {
+    setSelectedMeeting(meeting)
+    dispatch(fetchMeetingDetail(meeting.id))
+  }
 
   return (
     <DashboardLayout>
@@ -54,8 +78,8 @@ export default function MeetingsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {meetings && meetings.length > 0 ? (
-                    meetings.map((meeting) => (
+                  {_meetings && _meetings.length > 0 ? (
+                    _meetings.map((meeting) => (
                       <tr key={meeting.id} className="border-b border-border hover:bg-muted/50 transition-colors">
                         <td className="px-4 py-3 text-foreground font-medium">{meeting.title}</td>
                         <td className="px-4 py-3 text-muted-foreground">
@@ -70,7 +94,7 @@ export default function MeetingsPage() {
                             {meeting.meetingType}
                           </Badge>
                         </td>
-                        <td className="px-4 py-3 text-muted-foreground">{meeting.participants?.length || 0}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{meeting.participantCount || 0}</td>
                         <td className="px-4 py-3">
                           <Badge className={statusColors[meeting.status] || "bg-gray-100 text-gray-800"}>
                             {meeting.status}
@@ -80,7 +104,7 @@ export default function MeetingsPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setSelectedMeeting(meeting)}
+                            onClick={() => handleViewDetails(meeting)}
                             className="text-primary hover:bg-primary/10"
                           >
                             View Details

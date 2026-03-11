@@ -2,6 +2,9 @@
 
 import { useActions } from "@/lib/hooks/use-meetings"
 import { Badge } from "@/components/ui/badge"
+import { useAppDispatch, useAppSelector } from "@/lib/store/hooks"
+import { useEffect } from "react"
+import { fetchMyActions } from "@/lib/store/actionItem/actionItemSlice"
 
 const statusColors: Record<string, string> = {
   NEW: "bg-gray-100 text-gray-800",
@@ -18,7 +21,13 @@ const priorityColors: Record<string, string> = {
 }
 
 export default function MyActionsTable() {
-  const { actions } = useActions()
+  //const { actions } = useActions()
+  const dispatch = useAppDispatch()
+  const { actions, loading } = useAppSelector(state => state.actions)
+
+  useEffect(() => {
+    dispatch(fetchMyActions({ page: 0, size: 10 }))
+  }, [dispatch])
 
   if (actions.length === 0) {
     return <div className="text-center py-8 text-muted-foreground">No actions assigned</div>
@@ -50,7 +59,7 @@ export default function MyActionsTable() {
                 </Badge>
               </td>
               <td className="px-4 py-3 text-muted-foreground">
-                {new Date(action.deadline).toLocaleDateString("en-US", {
+                {new Date(action.deadline!).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
                 })}
